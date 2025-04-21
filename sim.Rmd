@@ -1,0 +1,230 @@
+---
+title: "Midterm"
+author: "Nicholas Skoufis, Levi Makwei, Daniel Yakubu"
+date: "3/28/2022"
+output: html_document
+---
+
+```{r, results='hold'}
+
+
+#set.seed(2)
+
+
+possession = 1
+ballSec = 1
+score1 = 0
+score2 = 0
+
+scores <- matrix(c(score1, score2), 2, 1)
+player = 0
+
+
+#players on team 1 in sector 1
+p11 <- c(1, 2, 3)
+#players on team 1 in sector 2
+p12 <- c(4, 5, 6, 7)
+p13 <- c(8, 9)
+p14 <- c(10)
+
+#players on team 2 in sector 1
+p21 <- c(9, 10)
+p22 <- c(8, 7, 6)
+p23 <- c(5, 4, 3)
+p24 <- c(2, 1)
+
+#creates an indexable matrix of players in the field
+# e.g. field field[1, 2] is players on team 1 in sector 2 (4, 5, 6, 7)
+# field[2, 4] is players on team 2 in sector 4 (2, 1)
+field <- matrix(list(p11, p21, p12, p22, p13, p23, p14, p24), 2, 4)
+
+
+pLongShot = 0.3
+pOffsides = 0.15
+pGoalieTo2 = 0.6
+
+
+p <- function(probability){
+  return (runif(1, 0, 1) < probability)
+}
+
+
+updatePlayer <- function(){
+  #cat("possesstion: ", possession, "ballSec:", ballSec, "\n\n")
+  #cat ("avalibale players on team", possession, "in sec", ballSec, ":" , unlist(field[possession, ballSec]), "\n")
+  player <<- sample(unlist(field[possession, ballSec]), 1)
+}
+
+#coin toss - assigns possession and ballSec
+start <- function(){
+  possession <<- sample(1:2, 1)
+  cat ("Team", possession, "wins the coin\n")
+  if (possession == 1){
+    ballSec <<- 2
+  } else{
+    ballSec <<- 3
+  }
+  
+  updatePlayer()
+}
+
+
+
+scoreCalc <- function(players){
+  total = sum(unlist(players))
+  return (sample(1:total, 1))
+}
+
+
+pass <- function(team){
+  defender = 3 - possession
+  dScore = scoreCalc(unlist(field[possession, ballSec]))
+  oScore = scoreCalc(unlist(field[defender, ballSec]))
+  
+  if (dScore > oScore){
+    possession <<- defender
+    return
+  }
+  
+  # move the ball after successful pass
+  if (player == 0){
+    if (possession == 1){
+      ballSec <<- 2
+    } else{
+      ballSec <<- 3
+    }
+  } else{
+  #ballSec <<- ballSec + (1.5 - possession ) *(-2)
+    if (possession == 1 && ballSec < 4){
+      ballSec <<- ballSec + 1
+    }
+    if (possession == 2 && ballSec > 1){
+      ballSec <<- ballSec - 1
+    }
+  }
+  updatePlayer()
+}
+
+shot <- function(minute, shootScore){
+  cat("Player" , player, "from team", possession, "takes a shot from sector", ballSec, "\n")
+  #shootScore = min(sample(1:player, 1), sample(1:player, 1))
+  if (shootScore > sample(1:7, 1)){
+    scores[possession] <<- scores[possession] + 1
+    cat("It's a goal on minute", minute, "!!! The score is now", scores[1], ":", scores[2], "\n")
+  } else{
+    cat("... and he misses. Team", (3 - possession), "is now in possession\n")
+  }
+  
+  possession <<- (3 - possession)
+  
+  player <<- 0
+}
+
+longShot <- function(minute){
+  shot(minute, min(sample(1:player, 1), sample(1:player, 1)))
+}
+
+goalie <- function(){
+  # pass to next sector
+  if (p(pGoalieTo2)){
+    pass()
+  } else{ #pass two sectors ahead
+    ballSec <<- (4 - possession)
+    defender = 3 - possession
+    dScore = scoreCalc(unlist(field[possession, ballSec]))
+    oScore = scoreCalc(unlist(field[defender, ballSec]))
+    if (dScore > oScore){
+      
+      possession <<- defender
+      cat("Intercept after the kick, team", possession, "is now in possession\n")
+      
+    } 
+    updatePlayer()
+  }
+}
+
+
+round <- function(minute){
+  
+  #cat("M:", minute, "POS:", possession, "SEC:", ballSec, "PLAYER:", ifelse(player==0, "GOALIE", player), "\n")
+  
+  defender = 3 - possession
+  dScore = scoreCalc(unlist(field[possession, ballSec]))
+  oScore = scoreCalc(unlist(field[defender, ballSec]))
+  #cat ("oScore: ", oScore, "dScore: ", dScore, "\n")
+  
+  if (player == 0){
+    goalie()
+    round(minute)
+    return
+  }
+  
+  #turn over
+  if (dScore > oScore){
+    possession <<- defender
+    #cat("Intercept after the kick, team", possession, "is now in possession\n")
+    updatePlayer()
+  } 
+  else if(oScore > dScore){
+    if ((possession == 1 && ballSec == 4) ||
+        (possession == 2 && ballSec == 1)){
+      #shooter <- sample(unlist(field[possession, ballSec]))
+      shot(minute, sample(1:player, 1))
+        }
+        
+    else if((possession == 1 && ballSec <= 3) ||
+       (possession == 2 && ballSec >= 2)){
+      pass()
+    }
+    
+    else if ((possession == 1 && ballSec == 3)||
+        (possession == 2 && ballSec == 2)){
+      
+      #offsides
+      if(p(pOffsides)){
+        possession <<- defender
+        cat("Offside, team", possession, "now has the ball\n")
+        updatePlayer()
+      }
+        }
+    else if ((possession == 1 && ballSec == 3) ||
+              (possession == 2 && ballSec == 2)){
+      #longshot
+          if (p(pLongShot)){
+            longshot(minute)
+              }
+    }
+    
+    # else if (ballSec != 1 && ballSec != 4){
+    #       pass()
+    # }
+    
+  }
+  
+  # cat("Team", possession, "has possession\n")
+  # cat("Ball in sector", ballSec, "\n")
+  # cat("defensive:", dScore, "\noffensive:", oScore, "\n")
+}
+
+start()
+
+for (minute in 1:90){
+round(minute)
+}
+
+
+cat("End of match. The score is", scores[1], ":", scores[2], "\n")
+
+if(scores[1] > scores[2]){
+  cat("Team 1 wins!!!")
+}else if (scores[1] < scores[2]){
+  cat("Team 2 wins!!!")
+} else{
+  cat("Tie!!!")
+}
+
+
+
+```
+
+
