@@ -1,6 +1,5 @@
 ---
-title: "Midterm"
-author: "Nicholas Skoufis, Levi Makwei, Daniel Yakubu"
+author:Levi Makwei
 date: "3/28/2022"
 output: html_document
 ---
