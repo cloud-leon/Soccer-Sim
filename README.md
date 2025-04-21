@@ -1,6 +1,3 @@
-Here’s a professional and clean **README** for your R simulation script:
-
----
 
 # Soccer Match Simulation in R
 
